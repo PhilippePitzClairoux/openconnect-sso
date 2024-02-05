@@ -1,4 +1,4 @@
-module go-openconnect-sso
+module github.com/PhilippePitzClairoux/openconnect-sso
 
 go 1.20
 
