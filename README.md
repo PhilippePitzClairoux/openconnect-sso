@@ -16,12 +16,12 @@ go install github.com/PhilippePitzClairoux/openconnect-sso@latest
 ## Usage
 Simple example :
 ```bash
-./go-openconnect-sso --server vpn.host.com
+openconnect-sso --server vpn.host.com
 ```
 
 Auto-fill username and/or password
 ```bash
-./go-openconnect-sso --server vpn.host.com --username myuser@email.com --password oopsThisMightNotBeTheBestIdeaEver
+openconnect-sso --server vpn.host.com --username myuser@email.com --password oopsThisMightNotBeTheBestIdeaEver
 ```
 
 ## How to build
