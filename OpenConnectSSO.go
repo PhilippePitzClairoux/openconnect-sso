@@ -13,7 +13,9 @@ import (
 )
 
 // flags
-var server = flag.String("server", "", "server to connect to via openconnect")
+var server = flag.String("server", "", "Server to connect to via openconnect")
+var username = flag.String("username", "", "Username to inject in login form")
+var password = flag.String("password", "", "Password to inject in login form")
 
 func main() {
 	flag.Parse()
@@ -23,20 +25,37 @@ func main() {
 	targetUrl := internal.GetActualUrl(client, *server)
 	samlAuth := internal.AuthenticationInit(client, targetUrl)
 	ctx, closeBrowser := internal.CreateBrowserContext()
+	var tasks chromedp.Tasks
+
+	// close browser at the end - no matter what happens
+	defer closeBrowser()
+
+	// create list of tasks to be executed by browser
+	tasks = append(tasks, chromedp.Navigate(samlAuth.Auth.SsoV2Login))
+	addTaskOnValue(&tasks, *password, "#passwordInput")
+	addTaskOnValue(&tasks, *username, "#userNameInput")
 
 	log.Println("Starting goroutine that searches for authentication cookie ", samlAuth.Auth.SsoV2TokenCookieName)
 	go internal.BrowserCookieFinder(ctx, cookieFound, samlAuth.Auth.SsoV2TokenCookieName)
 
 	log.Println("Open browser and navigate to SSO login page : ", samlAuth.Auth.SsoV2Login)
-	err := chromedp.Run(ctx, chromedp.Tasks{
-		chromedp.Navigate(samlAuth.Auth.SsoV2Login),
-	})
+	err := chromedp.Run(ctx, tasks)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// consume cookie and connect to vpn
 	startVpnOnLoginCookie(cookieFound, client, samlAuth, targetUrl, closeBrowser)
+}
+
+func addTaskOnValue(actions *chromedp.Tasks, value, selector string) {
+	if value != "" {
+		*actions = append(
+			*actions,
+			chromedp.WaitVisible(selector, chromedp.ByID),
+			chromedp.SendKeys(selector, value, chromedp.ByID),
+		)
+	}
 }
 
 // startVpnOnLoginCookie waits to get a cookie from the authenticationCookies channel before confirming
