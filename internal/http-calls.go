@@ -3,18 +3,51 @@ package internal
 import (
 	"bytes"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"regexp"
 )
 
+// Data extractors used instead of creating a struct to parse the content of an XML in AuthenticationConfirmation
 var sessionToken = regexp.MustCompile("<session-token>(.*)</session-token>")
 var serverCert = regexp.MustCompile("<server-cert-hash>(.*)</server-cert-hash>")
 
+const postAuthConfirmLoginPayload = `<?xml version="1.0" encoding="UTF-8"?>
+				  <config-auth client="vpn" type="auth-reply" aggregate-auth-version="2">
+					<version who="vpn">%s</version>
+					<device-id>linux-64</device-id>
+					<session-token/>
+					<session-id/>
+					<opaque is-for="sg">
+						<tunnel-group>%s</tunnel-group>
+						<aggauth-handle>%s</aggauth-handle>
+						<auth-method>single-sign-on-v2</auth-method>
+						<config-hash>%s</config-hash>
+					</opaque>
+					<auth>
+						<sso-token>%s</sso-token>
+					</auth>
+				  </config-auth>`
+
+const postAuthInitRequestPayload = `<?xml version="1.0" encoding="UTF-8"?>
+				<config-auth client="vpn" type="init" aggregate-auth-version="2">
+					<version who="vpn">%s</version>
+					<device-id>linux-64</device-id>
+					<group-select></group-select>
+					<group-access>%s</group-access>
+					<capabilities>
+						<auth-method>single-sign-on-v2</auth-method>
+					</capabilities>
+				</config-auth>`
+
 const VERSION = "4.7.00136"
 
-type AuthInitRequestResponse struct {
+// AuthenticationInitExpectedResponse is a struct used to parse the XML payload
+// we receive during the AuthenticationInit function. It contains valuable
+// information that will be used throughout various parts of the program
+type AuthenticationInitExpectedResponse struct {
 	XMLName xml.Name `xml:"config-auth"`
 	Opaque  struct {
 		TunnelGroup   string `xml:"tunnel-group"`
@@ -48,23 +81,41 @@ type AuthInitRequestResponse struct {
 	AggregateAuthVersion string `xml:"aggregate-auth-version,attr"`
 }
 
-func PostAuthConfirmLogin(client *http.Client, auth *AuthInitRequestResponse, ssoToken, _url string) (string, string) {
-	payload := `<?xml version="1.0" encoding="UTF-8"?>
-				  <config-auth client="vpn" type="auth-reply" aggregate-auth-version="2">
-					<version who="vpn">` + VERSION + `</version>
-					<device-id>linux-64</device-id>
-					<session-token/>
-					<session-id/>
-					<opaque is-for="sg">
-						<tunnel-group>` + auth.Opaque.TunnelGroup + `</tunnel-group>
-						<aggauth-handle>` + auth.Opaque.AggauthHandle + `</aggauth-handle>
-						<auth-method>single-sign-on-v2</auth-method>
-						<config-hash>` + auth.Opaque.ConfigHash + `</config-hash>
-					</opaque>
-					<auth>
-						<sso-token>` + ssoToken + `</sso-token>
-					</auth>
-				  </config-auth>`
+// AuthenticationInit sends a http request to _url to get the actual URL and initiate SAML login request
+func AuthenticationInit(client *http.Client, _url string) *AuthenticationInitExpectedResponse {
+	payload := fmt.Sprintf(postAuthInitRequestPayload, VERSION, _url)
+
+	post, err := client.Post(_url, `application/x-www-form-urlencoded`, bytes.NewBuffer([]byte(payload)))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	body, err := io.ReadAll(post.Body)
+	defer post.Body.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var response AuthenticationInitExpectedResponse
+	err = xml.Unmarshal(body, &response)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return &response
+}
+
+// AuthenticationConfirmation sends a http request to _url confirming the authentication was successfull
+// (means we got the cookie and we're ready to start the next phase)
+func AuthenticationConfirmation(client *http.Client, auth *AuthenticationInitExpectedResponse, ssoToken, _url string) (string, string) {
+	payload := fmt.Sprintf(
+		postAuthConfirmLoginPayload,
+		VERSION,
+		auth.Opaque.TunnelGroup,
+		auth.Opaque.AggauthHandle,
+		auth.Opaque.ConfigHash,
+		ssoToken,
+	)
 
 	post, err := client.Post(_url, `application/x-www-form-urlencoded`, bytes.NewBuffer([]byte(payload)))
 	if err != nil {
@@ -85,36 +136,4 @@ func PostAuthConfirmLogin(client *http.Client, auth *AuthInitRequestResponse, ss
 	}
 
 	return token[1], cert[1]
-}
-
-func PostAuthInitRequest(client *http.Client, _url string) *AuthInitRequestResponse {
-	payload := `<?xml version="1.0" encoding="UTF-8"?>
-				<config-auth client="vpn" type="init" aggregate-auth-version="2">
-					<version who="vpn">` + VERSION + `</version>
-					<device-id>linux-64</device-id>
-					<group-select>` + `</group-select>
-					<group-access>` + _url + `</group-access>
-					<capabilities>
-						<auth-method>single-sign-on-v2</auth-method>
-					</capabilities>
-				</config-auth>`
-
-	post, err := client.Post(_url, `application/x-www-form-urlencoded`, bytes.NewBuffer([]byte(payload)))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	body, err := io.ReadAll(post.Body)
-	defer post.Body.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var response AuthInitRequestResponse
-	err = xml.Unmarshal(body, &response)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return &response
 }

@@ -8,6 +8,12 @@ In order to build this project, you only need docker.
 ./build.sh
 ```
 
+You can set env variables with the name GOOS and GOARCH in order to change
+the OS and cpu architecture of the build.
+```bash
+GOOS=darwin GOARCH=arm ./build.sh
+```
+
 ## Usage
 ```
 ./go-openconnect-sso --server vpn.host.com
