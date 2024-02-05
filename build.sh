@@ -28,5 +28,5 @@ sh -c "docker run  ${OVERRIDE_GO_VARIABLES} --name builder openconnect-sso-build
 echo -e "Copy executable from container to ./out directory\n"
 docker cp builder:/opt/out ./out
 
-#echo "Copying ./out/go-openconnect-sso to /usr/bin/go-openconnect-sso"
-#sudo cp ./out/go-openconnect-sso /usr/bin/go-openconnect-sso
+echo "Copying ./out/openconnect-sso to /usr/bin/openconnect-sso"
+sudo cp ./out/openconnect-sso /usr/bin/openconnect-sso

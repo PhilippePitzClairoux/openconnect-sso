@@ -16,4 +16,4 @@ ADD OpenConnectSSO.go OpenConnectSSO.go
 RUN mkdir out
 
 # build executable
-CMD ["go", "build", "-o", "out/go-openconnect-sso", "."]
+CMD ["go", "build", "-o", "out/openconnect-sso", "."]
