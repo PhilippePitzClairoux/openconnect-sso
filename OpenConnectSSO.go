@@ -25,15 +25,12 @@ func main() {
 	targetUrl := internal.GetActualUrl(client, *server)
 	samlAuth := internal.AuthenticationInit(client, targetUrl)
 	ctx, closeBrowser := internal.CreateBrowserContext()
-	var tasks chromedp.Tasks
+
+	// generate tasks
+	tasks := generateDefaultBrowserTasks(samlAuth)
 
 	// close browser at the end - no matter what happens
 	defer closeBrowser()
-
-	// create list of tasks to be executed by browser
-	tasks = append(tasks, chromedp.Navigate(samlAuth.Auth.SsoV2Login))
-	addTaskOnValue(&tasks, *password, "#passwordInput")
-	addTaskOnValue(&tasks, *username, "#userNameInput")
 
 	log.Println("Starting goroutine that searches for authentication cookie ", samlAuth.Auth.SsoV2TokenCookieName)
 	go internal.BrowserCookieFinder(ctx, cookieFound, samlAuth.Auth.SsoV2TokenCookieName)
@@ -48,7 +45,18 @@ func main() {
 	startVpnOnLoginCookie(cookieFound, client, samlAuth, targetUrl, closeBrowser)
 }
 
-func addTaskOnValue(actions *chromedp.Tasks, value, selector string) {
+func generateDefaultBrowserTasks(samlAuth *internal.AuthenticationInitExpectedResponse) chromedp.Tasks {
+	var tasks chromedp.Tasks
+
+	// create list of tasks to be executed by browser
+	tasks = append(tasks, chromedp.Navigate(samlAuth.Auth.SsoV2Login))
+	addAutofillTaskOnValue(&tasks, *password, "#passwordInput")
+	addAutofillTaskOnValue(&tasks, *username, "#userNameInput")
+
+	return tasks
+}
+
+func addAutofillTaskOnValue(actions *chromedp.Tasks, value, selector string) {
 	if value != "" {
 		*actions = append(
 			*actions,
