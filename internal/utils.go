@@ -2,11 +2,14 @@ package internal
 
 import (
 	"context"
+	"github.com/chromedp/cdproto/inspector"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 )
 
 func BrowserCookieFinder(ctx context.Context, cookies chan string, name string) {
@@ -64,4 +67,13 @@ func CreateBrowserContext() (context.Context, context.CancelFunc) {
 	allocCtx, _ := chromedp.NewExecAllocator(ctx, opts...)
 
 	return chromedp.NewContext(allocCtx)
+}
+
+func CloseBrowserOnRenderProcessGone(ev interface{}, exit chan os.Signal) {
+	ins, ok := ev.(*inspector.EventDetached)
+	if ok {
+		if strings.Contains(ins.Reason.String(), "Render process gone.") {
+			exit <- os.Kill
+		}
+	}
 }

@@ -10,27 +10,42 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 )
 
 // flags
 var server = flag.String("server", "", "Server to connect to via openconnect")
 var username = flag.String("username", "", "Username to inject in login form")
 var password = flag.String("password", "", "Password to inject in login form")
+var extraArgs = flag.String("extra-args", "", "Extra args for openconnect (will not override pre-existing ones)")
 
 func main() {
 	flag.Parse()
 
+	// Register kill/interrupt signals
+	exit := make(chan os.Signal)
+	signal.Notify(exit, os.Kill, os.Interrupt)
+
+	// Initialize http clients and start authentication process
 	client := internal.NewHttpClient(*server)
 	cookieFound := make(chan string)
 	targetUrl := internal.GetActualUrl(client, *server)
 	samlAuth := internal.AuthenticationInit(client, targetUrl)
 	ctx, closeBrowser := internal.CreateBrowserContext()
 
+	// Here we setup a listener to catch the event of a user closing their browser.
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		internal.CloseBrowserOnRenderProcessGone(ev, exit)
+	})
+
 	// generate tasks
 	tasks := generateDefaultBrowserTasks(samlAuth)
 
 	// close browser at the end - no matter what happens
 	defer closeBrowser()
+
+	// handle exit signal
+	go handleExit(exit, closeBrowser)
 
 	log.Println("Starting goroutine that searches for authentication cookie ", samlAuth.Auth.SsoV2TokenCookieName)
 	go internal.BrowserCookieFinder(ctx, cookieFound, samlAuth.Auth.SsoV2TokenCookieName)
@@ -43,6 +58,13 @@ func main() {
 
 	// consume cookie and connect to vpn
 	startVpnOnLoginCookie(cookieFound, client, samlAuth, targetUrl, closeBrowser)
+}
+
+func handleExit(exit chan os.Signal, browser context.CancelFunc) {
+	sig := <-exit
+	log.Printf("Got an exit signal (%s)! Cya!", sig.String())
+	browser()
+	os.Exit(0)
 }
 
 func generateDefaultBrowserTasks(samlAuth *internal.AuthenticationInitExpectedResponse) chromedp.Tasks {
@@ -83,6 +105,7 @@ func startVpnOnLoginCookie(authenticationCookies chan string, client *http.Clien
 			token,
 			"--servercert",
 			cert,
+			*extraArgs,
 			targetUrl,
 		)
 
