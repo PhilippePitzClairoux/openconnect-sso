@@ -17,7 +17,6 @@ import (
 var server = flag.String("server", "", "Server to connect to via openconnect")
 var username = flag.String("username", "", "Username to inject in login form")
 var password = flag.String("password", "", "Password to inject in login form")
-var extraArgs = flag.String("extra-args", "", "Extra args for openconnect (will not override pre-existing ones)")
 
 func main() {
 	flag.Parse()
@@ -99,13 +98,12 @@ func startVpnOnLoginCookie(authenticationCookies chan string, client *http.Clien
 			"openconnect",
 			"--useragent",
 			fmt.Sprintf("AnyConnect Linux_64 %s", internal.VERSION),
-			fmt.Sprintf("--version-string"),
+			"--version-string",
 			internal.VERSION,
 			"--cookie",
 			token,
 			"--servercert",
 			cert,
-			*extraArgs,
 			targetUrl,
 		)
 
