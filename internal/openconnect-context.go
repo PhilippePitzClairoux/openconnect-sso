@@ -27,8 +27,6 @@ type OpenconnectCtx struct {
 
 func NewOpenconnectCtx(server, username, password string) *OpenconnectCtx {
 	client := NewHttpClient(server)
-	cookieFound := make(chan string)
-	targetUrl := getActualUrl(client, server)
 	exit := make(chan os.Signal)
 
 	// register exit signals
@@ -36,9 +34,9 @@ func NewOpenconnectCtx(server, username, password string) *OpenconnectCtx {
 
 	return &OpenconnectCtx{
 		client:          client,
-		cookieFoundChan: cookieFound,
+		cookieFoundChan: make(chan string),
 		exitChan:        exit,
-		targetUrl:       targetUrl,
+		targetUrl:       getActualUrl(client, server),
 		username:        username,
 		password:        password,
 	}
