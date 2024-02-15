@@ -1,33 +1,15 @@
 package internal
 
 import (
-	"context"
-	"github.com/chromedp/cdproto/inspector"
-	"github.com/chromedp/cdproto/network"
-	"github.com/chromedp/chromedp"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 )
-
-func BrowserCookieFinder(ctx context.Context, cookies chan string, name string) {
-	chromedp.ListenTarget(ctx, func(ev interface{}) {
-		switch ev := ev.(type) {
-		case *network.EventRequestWillBeSentExtraInfo:
-			for _, cookie := range ev.AssociatedCookies {
-				if cookie.Cookie.Name == name {
-					cookies <- cookie.Cookie.Value
-				}
-			}
-		}
-	})
-}
 
 // thanks chatGPT for the refactoring of this function.
 // i'm way too high to be doing this right now...!
-func GetActualUrl(client *http.Client, targetUrl string) string {
+func getActualUrl(client *http.Client, targetUrl string) string {
 	// Ensure the URL is properly formatted with the HTTPS protocol.
 	uri, err := url.ParseRequestURI("https://" + targetUrl)
 	if err != nil {
@@ -53,27 +35,17 @@ func GetActualUrl(client *http.Client, targetUrl string) string {
 	return do.Request.URL.String()
 }
 
-// chrome options
-var opts = append(chromedp.DefaultExecAllocatorOptions[:],
-	chromedp.Flag("headless", false), // Set headless mode to false
-	chromedp.Flag("disable-gpu", false),
-)
+func (oc *OpenconnectCtx) handleExit() {
+	sig := <-oc.exitChan
 
-func CreateBrowserContext() (context.Context, context.CancelFunc) {
-	// create context
-	ctx, _ := chromedp.NewContext(context.Background())
+	log.Println("Closing Browser...")
+	oc.closeBrowser()
 
-	// Create an allocator
-	allocCtx, _ := chromedp.NewExecAllocator(ctx, opts...)
-
-	return chromedp.NewContext(allocCtx)
-}
-
-func CloseBrowserOnRenderProcessGone(ev interface{}, exit chan os.Signal) {
-	ins, ok := ev.(*inspector.EventDetached)
-	if ok {
-		if strings.Contains(ins.Reason.String(), "Render process gone.") {
-			exit <- os.Kill
-		}
+	if oc.process != nil {
+		err := oc.process.Cancel()
+		log.Printf("Closing openconnect process (error : %s)\n", err)
 	}
+
+	log.Printf("Got an exit signal (%s)! Cya!", sig.String())
+	os.Exit(0)
 }
