@@ -4,13 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/PhilippePitzClairoux/openconnect-sso/internal"
-	"github.com/chromedp/chromedp"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
+
+	"github.com/PhilippePitzClairoux/openconnect-sso/internal"
+	"github.com/chromedp/chromedp"
 )
 
 // flags
@@ -97,15 +98,10 @@ func startVpnOnLoginCookie(authenticationCookies chan string, client *http.Clien
 
 		command := exec.Command("sudo",
 			"openconnect",
-			"--useragent",
-			fmt.Sprintf("AnyConnect Linux_64 %s", internal.VERSION),
-			fmt.Sprintf("--version-string"),
-			internal.VERSION,
-			"--cookie",
-			token,
-			"--servercert",
-			cert,
-			*extraArgs,
+			fmt.Sprintf("--useragent=AnyConnect Linux_64 %s", internal.VERSION),
+			fmt.Sprintf("--version-string=%s", internal.VERSION),
+			fmt.Sprintf("--cookie=%s", token),
+			fmt.Sprintf("--servercert=%s", cert),
 			targetUrl,
 		)
 
