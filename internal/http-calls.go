@@ -3,10 +3,10 @@ package internal
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"regexp"
 )
 
@@ -82,32 +82,32 @@ type AuthenticationInitExpectedResponse struct {
 }
 
 // AuthenticationInit sends a http request to _url to get the actual URL and initiate SAML login request
-func AuthenticationInit(client *http.Client, _url string) *AuthenticationInitExpectedResponse {
-	payload := fmt.Sprintf(postAuthInitRequestPayload, VERSION, _url)
+func (oc *OpenconnectCtx) AuthenticationInit() (*AuthenticationInitExpectedResponse, error) {
+	payload := fmt.Sprintf(postAuthInitRequestPayload, VERSION, oc.targetUrl)
 
-	post, err := client.Post(_url, `application/x-www-form-urlencoded`, bytes.NewBuffer([]byte(payload)))
+	post, err := oc.client.Post(oc.targetUrl, `application/x-www-form-urlencoded`, bytes.NewBuffer([]byte(payload)))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	body, err := io.ReadAll(post.Body)
 	defer post.Body.Close()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	var response AuthenticationInitExpectedResponse
 	err = xml.Unmarshal(body, &response)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	return &response
+	return &response, nil
 }
 
 // AuthenticationConfirmation sends a http request to _url confirming the authentication was successfull
 // (means we got the cookie and we're ready to start the next phase)
-func AuthenticationConfirmation(client *http.Client, auth *AuthenticationInitExpectedResponse, ssoToken, _url string) (string, string) {
+func (oc *OpenconnectCtx) AuthenticationConfirmation(auth *AuthenticationInitExpectedResponse, ssoToken string) (string, string, error) {
 	payload := fmt.Sprintf(
 		postAuthConfirmLoginPayload,
 		VERSION,
@@ -117,7 +117,7 @@ func AuthenticationConfirmation(client *http.Client, auth *AuthenticationInitExp
 		ssoToken,
 	)
 
-	post, err := client.Post(_url, `application/x-www-form-urlencoded`, bytes.NewBuffer([]byte(payload)))
+	post, err := oc.client.Post(oc.targetUrl, `application/x-www-form-urlencoded`, bytes.NewBuffer([]byte(payload)))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -132,8 +132,8 @@ func AuthenticationConfirmation(client *http.Client, auth *AuthenticationInitExp
 	cert := serverCert.FindStringSubmatch(string(body))
 
 	if len(token) != 2 || len(cert) != 2 {
-		log.Fatal("There was an issue while trying to extract token/cert...")
+		return "", "", errors.New("Could not extract cert and/or token")
 	}
 
-	return token[1], cert[1]
+	return token[1], cert[1], nil
 }
