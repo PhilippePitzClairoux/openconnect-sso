@@ -102,6 +102,7 @@ func (oc *OpenconnectCtx) AuthenticationInit() (*AuthenticationInitExpectedRespo
 		return nil, err
 	}
 
+	oc.tracef("Authentication response : %+v", response)
 	return &response, nil
 }
 

@@ -66,7 +66,7 @@ func (oc *OpenconnectCtx) Run() error {
 	go oc.handleExit()
 
 	log.Println("Starting goroutine to search for cookie", samlAuth.Auth.SsoV2TokenCookieName)
-	go oc.browserCookieFinder(samlAuth.Auth.SsoV2TokenCookieName)
+	go oc.browserCookieFinder(samlAuth.Auth.SsoV2TokenCookieName, samlAuth.Auth.SsoV2ErrorCookieName)
 
 	log.Println("Open browser and navigate to SSO login page : ", samlAuth.Auth.SsoV2Login)
 	err = chromedp.Run(oc.browserCtx, tasks)
