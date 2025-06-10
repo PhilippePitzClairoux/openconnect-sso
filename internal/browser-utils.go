@@ -43,6 +43,7 @@ func (oc *OpenconnectCtx) browserCookieFinder(name string) {
 			for _, cookie := range ev.AssociatedCookies {
 				oc.tracef("checking %s (expecting %s)", cookie.Cookie.Name, name)
 				if cookie.Cookie.Name == name {
+					oc.tracef("AUTH COOKIE FOUND!")
 					oc.cookieFoundChan <- cookie.Cookie.Value
 				}
 			}
