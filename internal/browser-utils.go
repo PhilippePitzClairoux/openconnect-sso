@@ -41,10 +41,13 @@ func (oc *OpenconnectCtx) browserCookieFinder(name string) {
 		switch ev := ev.(type) {
 		case *network.EventRequestWillBeSentExtraInfo:
 			for _, cookie := range ev.AssociatedCookies {
+				oc.tracef("checking %s (expecting %s)", cookie.Cookie.Name, name)
 				if cookie.Cookie.Name == name {
 					oc.cookieFoundChan <- cookie.Cookie.Value
 				}
 			}
+		default:
+			// do nothing
 		}
 	})
 }

@@ -85,7 +85,7 @@ type AuthenticationInitExpectedResponse struct {
 func (oc *OpenconnectCtx) AuthenticationInit() (*AuthenticationInitExpectedResponse, error) {
 	payload := fmt.Sprintf(postAuthInitRequestPayload, VERSION, oc.targetUrl)
 
-	post, err := oc.client.Post(oc.targetUrl, `application/x-www-form-urlencoded`, bytes.NewBuffer([]byte(payload)))
+	post, err := oc.Post(oc.targetUrl, `application/x-www-form-urlencoded`, bytes.NewBuffer([]byte(payload)))
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (oc *OpenconnectCtx) AuthenticationConfirmation(auth *AuthenticationInitExp
 		ssoToken,
 	)
 
-	post, err := oc.client.Post(oc.targetUrl, `application/x-www-form-urlencoded`, bytes.NewBuffer([]byte(payload)))
+	post, err := oc.Post(oc.targetUrl, `application/x-www-form-urlencoded`, bytes.NewBuffer([]byte(payload)))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func (oc *OpenconnectCtx) AuthenticationConfirmation(auth *AuthenticationInitExp
 	cert := serverCert.FindStringSubmatch(string(body))
 
 	if len(token) != 2 || len(cert) != 2 {
-		return "", "", errors.New("Could not extract cert and/or token")
+		return "", "", errors.New("could not extract cert and/or token")
 	}
 
 	return token[1], cert[1], nil
