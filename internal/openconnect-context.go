@@ -109,7 +109,7 @@ func (oc *OpenconnectCtx) startVpnOnLoginCookie(auth *AuthenticationInitExpected
 
 		oc.process = exec.Command("sudo",
 			"openconnect",
-			fmt.Sprintf("--useragent=AnyConnect Linux_64 %s", VERSION),
+			"--useragent=\"OpenConnect-SSO\"",
 			fmt.Sprintf("--version-string=%s", VERSION),
 			fmt.Sprintf("--cookie=%s", token),
 			fmt.Sprintf("--servercert=%s", cert),

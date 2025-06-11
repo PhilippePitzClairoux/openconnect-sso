@@ -48,7 +48,9 @@ func (oc *OpenconnectCtx) browserCookieFinder(name string, errorName string) {
 					oc.tracef("AUTH COOKIE FOUND!")
 					oc.cookieFoundChan <- cookie.Cookie.Value
 				case errorName:
-					log.Fatalf("Could not complete authentication : %s %s\n", cookie.Cookie.Name, cookie.Cookie.Value)
+					if cookie.Cookie.Value != "" {
+						log.Fatalf("Could not complete authentication : \"%s\"\n", cookie.Cookie.Value)
+					}
 				default:
 					// nothing
 				}
