@@ -5,6 +5,7 @@ import (
 	"github.com/chromedp/cdproto/inspector"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
+	"log"
 	"os"
 	"strings"
 )
@@ -36,15 +37,26 @@ func closeBrowserOnRenderProcessGone(ev interface{}, exit chan os.Signal) {
 
 // browserCookieFinder setup's a chromedp listener in order to look
 // through the cookies channel for a cookie that matches name
-func (oc *OpenconnectCtx) browserCookieFinder(name string) {
+func (oc *OpenconnectCtx) browserCookieFinder(name string, errorName string) {
 	chromedp.ListenTarget(oc.browserCtx, func(ev interface{}) {
 		switch ev := ev.(type) {
 		case *network.EventRequestWillBeSentExtraInfo:
 			for _, cookie := range ev.AssociatedCookies {
-				if cookie.Cookie.Name == name {
+				oc.tracef("checking %s (expecting %s)", cookie.Cookie.Name, name)
+				switch cookie.Cookie.Name {
+				case name:
+					oc.tracef("AUTH COOKIE FOUND!")
 					oc.cookieFoundChan <- cookie.Cookie.Value
+				case errorName:
+					if cookie.Cookie.Value != "" {
+						log.Fatalf("Could not complete authentication : \"%s\"\n", cookie.Cookie.Value)
+					}
+				default:
+					// nothing
 				}
 			}
+		default:
+			// do nothing
 		}
 	})
 }

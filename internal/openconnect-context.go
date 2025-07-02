@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/chromedp/chromedp"
@@ -23,9 +24,10 @@ type OpenconnectCtx struct {
 	password        string
 	browserCtx      context.Context
 	closeBrowser    context.CancelFunc
+	trace           bool
 }
 
-func NewOpenconnectCtx(server, username, password string) *OpenconnectCtx {
+func NewOpenconnectCtx(server, username, password string, trace bool) *OpenconnectCtx {
 	client := NewHttpClient(server)
 	exit := make(chan os.Signal)
 
@@ -39,6 +41,7 @@ func NewOpenconnectCtx(server, username, password string) *OpenconnectCtx {
 		targetUrl:       getActualUrl(client, server),
 		username:        username,
 		password:        password,
+		trace:           trace,
 	}
 }
 
@@ -63,7 +66,7 @@ func (oc *OpenconnectCtx) Run() error {
 	go oc.handleExit()
 
 	log.Println("Starting goroutine to search for cookie", samlAuth.Auth.SsoV2TokenCookieName)
-	go oc.browserCookieFinder(samlAuth.Auth.SsoV2TokenCookieName)
+	go oc.browserCookieFinder(samlAuth.Auth.SsoV2TokenCookieName, samlAuth.Auth.SsoV2ErrorCookieName)
 
 	log.Println("Open browser and navigate to SSO login page : ", samlAuth.Auth.SsoV2Login)
 	err = chromedp.Run(oc.browserCtx, tasks)
@@ -87,9 +90,15 @@ func (oc *OpenconnectCtx) startBrowser(samlAuth *AuthenticationInitExpectedRespo
 	return tasks, nil
 }
 
+func (oc *OpenconnectCtx) Post(url, contentType string, buffer *bytes.Buffer) (resp *http.Response, err error) {
+	oc.tracef("POST %s (content-type: %s), body len : %d\n", url, contentType, buffer.Len())
+	return oc.client.Post(url, contentType, buffer)
+}
+
 // startVpnOnLoginCookie waits to get a cookie from the authenticationCookies channel before confirming
 // the authentication process (to get token/cert) and then starting openconnect
 func (oc *OpenconnectCtx) startVpnOnLoginCookie(auth *AuthenticationInitExpectedResponse) error {
+	log.Println("Starting cookie consumer to find session")
 	for cookie := range oc.cookieFoundChan {
 		token, cert, err := oc.AuthenticationConfirmation(auth, cookie)
 		oc.closeBrowser() // close browser
@@ -100,7 +109,7 @@ func (oc *OpenconnectCtx) startVpnOnLoginCookie(auth *AuthenticationInitExpected
 
 		oc.process = exec.Command("sudo",
 			"openconnect",
-			fmt.Sprintf("--useragent=AnyConnect Linux_64 %s", VERSION),
+			"--useragent=\"OpenConnect-SSO\"",
 			fmt.Sprintf("--version-string=%s", VERSION),
 			fmt.Sprintf("--cookie=%s", token),
 			fmt.Sprintf("--servercert=%s", cert),
@@ -116,4 +125,10 @@ func (oc *OpenconnectCtx) startVpnOnLoginCookie(auth *AuthenticationInitExpected
 	}
 
 	return nil
+}
+
+func (oc *OpenconnectCtx) tracef(format string, v ...any) {
+	if oc.trace {
+		log.Printf(format, v...)
+	}
 }
