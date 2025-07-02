@@ -133,6 +133,7 @@ func (oc *OpenconnectCtx) AuthenticationConfirmation(auth *AuthenticationInitExp
 	cert := serverCert.FindStringSubmatch(string(body))
 
 	if len(token) != 2 || len(cert) != 2 {
+		oc.tracef("Payload : \n%s\n", string(body))
 		return "", "", errors.New("could not extract cert and/or token")
 	}
 
