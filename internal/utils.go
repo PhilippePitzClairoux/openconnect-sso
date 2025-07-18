@@ -35,7 +35,7 @@ func getActualUrl(client *http.Client, targetUrl string) string {
 	return do.Request.URL.String()
 }
 
-func (oc *OpenconnectCtx) handleExit() {
+func (oc *OpenConnectCtx) handleExit() {
 	sig := <-oc.exitChan
 
 	log.Println("Closing Browser...")

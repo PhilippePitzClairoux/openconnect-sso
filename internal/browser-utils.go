@@ -37,7 +37,7 @@ func closeBrowserOnRenderProcessGone(ev interface{}, exit chan os.Signal) {
 
 // browserCookieFinder setup's a chromedp listener in order to look
 // through the cookies channel for a cookie that matches name
-func (oc *OpenconnectCtx) browserCookieFinder(name string, errorName string) {
+func (oc *OpenConnectCtx) browserCookieFinder(name string, errorName string) {
 	chromedp.ListenTarget(oc.browserCtx, func(ev interface{}) {
 		switch ev := ev.(type) {
 		case *network.EventRequestWillBeSentExtraInfo:
@@ -63,7 +63,7 @@ func (oc *OpenconnectCtx) browserCookieFinder(name string, errorName string) {
 
 // generateDefaultBrowserTasks adds a task to inject username and/or password if the argument is present.
 // also adds the initial Navigate command to open the browser on the right window
-func (oc *OpenconnectCtx) generateDefaultBrowserTasks(samlAuth *AuthenticationInitExpectedResponse) chromedp.Tasks {
+func (oc *OpenConnectCtx) generateDefaultBrowserTasks(samlAuth *AuthenticationInitExpectedResponse) chromedp.Tasks {
 	var tasks chromedp.Tasks
 
 	// create list of tasks to be executed by browser

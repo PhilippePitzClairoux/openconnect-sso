@@ -12,7 +12,7 @@ import (
 	"os/signal"
 )
 
-type OpenconnectCtx struct {
+type OpenConnectCtx struct {
 	process         *exec.Cmd
 	client          *http.Client
 	exit            chan os.Signal
@@ -27,14 +27,14 @@ type OpenconnectCtx struct {
 	trace           bool
 }
 
-func NewOpenconnectCtx(server, username, password string, trace bool) *OpenconnectCtx {
+func NewOpenconnectCtx(server, username, password string, trace bool) *OpenConnectCtx {
 	client := NewHttpClient(server)
 	exit := make(chan os.Signal)
 
 	// register exit signals
 	signal.Notify(exit, os.Kill, os.Interrupt)
 
-	return &OpenconnectCtx{
+	return &OpenConnectCtx{
 		client:          client,
 		cookieFoundChan: make(chan string),
 		exitChan:        exit,
@@ -45,7 +45,7 @@ func NewOpenconnectCtx(server, username, password string, trace bool) *Openconne
 	}
 }
 
-func (oc *OpenconnectCtx) Run() error {
+func (oc *OpenConnectCtx) Run() error {
 	samlAuth, err := oc.AuthenticationInit()
 	if err != nil {
 		log.Println("Could not start authentication process...")
@@ -78,7 +78,7 @@ func (oc *OpenconnectCtx) Run() error {
 	return oc.startVpnOnLoginCookie(samlAuth)
 }
 
-func (oc *OpenconnectCtx) startBrowser(samlAuth *AuthenticationInitExpectedResponse) (chromedp.Tasks, error) {
+func (oc *OpenConnectCtx) startBrowser(samlAuth *AuthenticationInitExpectedResponse) (chromedp.Tasks, error) {
 	oc.browserCtx, oc.closeBrowser = createBrowserContext()
 	tasks := oc.generateDefaultBrowserTasks(samlAuth)
 
@@ -90,14 +90,31 @@ func (oc *OpenconnectCtx) startBrowser(samlAuth *AuthenticationInitExpectedRespo
 	return tasks, nil
 }
 
-func (oc *OpenconnectCtx) Post(url, contentType string, buffer *bytes.Buffer) (resp *http.Response, err error) {
+func (oc *OpenConnectCtx) Post(url, contentType string, buffer *bytes.Buffer) (resp *http.Response, err error) {
 	oc.tracef("POST %s (content-type: %s), body len : %d\n", url, contentType, buffer.Len())
 	return oc.client.Post(url, contentType, buffer)
 }
 
+func (oc *OpenConnectCtx) buildArgs(version, cookie, servercert string) []string {
+	args := []string{
+		"openconnect",
+		"--useragent=\"OpenConnect-SSO\"",
+		fmt.Sprintf("--version-string=%s", version),
+		fmt.Sprintf("--cookie=%s", cookie),
+		fmt.Sprintf("--servercert=%s", servercert),
+	}
+
+	if oc.trace {
+		args = append(args, "--verbose")
+	}
+
+	args = append(args, oc.targetUrl)
+	return args
+}
+
 // startVpnOnLoginCookie waits to get a cookie from the authenticationCookies channel before confirming
 // the authentication process (to get token/cert) and then starting openconnect
-func (oc *OpenconnectCtx) startVpnOnLoginCookie(auth *AuthenticationInitExpectedResponse) error {
+func (oc *OpenConnectCtx) startVpnOnLoginCookie(auth *AuthenticationInitExpectedResponse) error {
 	log.Println("Starting cookie consumer to find session")
 	for cookie := range oc.cookieFoundChan {
 		token, cert, err := oc.AuthenticationConfirmation(auth, cookie)
@@ -108,12 +125,7 @@ func (oc *OpenconnectCtx) startVpnOnLoginCookie(auth *AuthenticationInitExpected
 		}
 
 		oc.process = exec.Command("sudo",
-			"openconnect",
-			"--useragent=\"OpenConnect-SSO\"",
-			fmt.Sprintf("--version-string=%s", VERSION),
-			fmt.Sprintf("--cookie=%s", token),
-			fmt.Sprintf("--servercert=%s", cert),
-			oc.targetUrl,
+			oc.buildArgs(VERSION, token, cert)...,
 		)
 
 		oc.process.Stdout = os.Stdout
@@ -127,7 +139,7 @@ func (oc *OpenconnectCtx) startVpnOnLoginCookie(auth *AuthenticationInitExpected
 	return nil
 }
 
-func (oc *OpenconnectCtx) tracef(format string, v ...any) {
+func (oc *OpenConnectCtx) tracef(format string, v ...any) {
 	if oc.trace {
 		log.Printf(format, v...)
 	}

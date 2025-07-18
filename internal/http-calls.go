@@ -82,7 +82,7 @@ type AuthenticationInitExpectedResponse struct {
 }
 
 // AuthenticationInit sends a http request to _url to get the actual URL and initiate SAML login request
-func (oc *OpenconnectCtx) AuthenticationInit() (*AuthenticationInitExpectedResponse, error) {
+func (oc *OpenConnectCtx) AuthenticationInit() (*AuthenticationInitExpectedResponse, error) {
 	payload := fmt.Sprintf(postAuthInitRequestPayload, VERSION, oc.targetUrl)
 
 	post, err := oc.Post(oc.targetUrl, `application/x-www-form-urlencoded`, bytes.NewBuffer([]byte(payload)))
@@ -108,7 +108,7 @@ func (oc *OpenconnectCtx) AuthenticationInit() (*AuthenticationInitExpectedRespo
 
 // AuthenticationConfirmation sends a http request to _url confirming the authentication was successfull
 // (means we got the cookie and we're ready to start the next phase)
-func (oc *OpenconnectCtx) AuthenticationConfirmation(auth *AuthenticationInitExpectedResponse, ssoToken string) (string, string, error) {
+func (oc *OpenConnectCtx) AuthenticationConfirmation(auth *AuthenticationInitExpectedResponse, ssoToken string) (string, string, error) {
 	payload := fmt.Sprintf(
 		postAuthConfirmLoginPayload,
 		VERSION,
